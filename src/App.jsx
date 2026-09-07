@@ -28,7 +28,7 @@ function MainRouter() {
 
   // Check if viewing public proposal route e.g. /p/kyle-asks-maya
   if (currentPath.startsWith('/p/')) {
-    const slug = currentPath.replace('/p/', '').trim();
+    const slug = currentPath.replace(/^\/p\//, '').split('/')[0].split('?')[0].trim().toLowerCase();
     if (slug) {
       return <PublicProposalPage slug={slug} />;
     }

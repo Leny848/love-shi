@@ -209,7 +209,8 @@ app.delete('/api/proposals/:id', authenticateToken, async (req, res) => {
 // -----------------------------------------------------------------------------
 app.get('/api/p/:slug', async (req, res) => {
   try {
-    const proposal = await getProposalBySlug(req.params.slug.toLowerCase());
+    const rawSlug = decodeURIComponent(req.params.slug || '');
+    const proposal = await getProposalBySlug(rawSlug);
     if (!proposal) {
       return res.status(404).json({ error: 'Proposal not found' });
     }
@@ -237,7 +238,8 @@ app.get('/api/p/:slug', async (req, res) => {
 
 app.post('/api/p/:slug/respond', rateLimitSubmit, async (req, res) => {
   try {
-    const proposal = await getProposalBySlug(req.params.slug.toLowerCase());
+    const rawSlug = decodeURIComponent(req.params.slug || '');
+    const proposal = await getProposalBySlug(rawSlug);
     if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
 
     const { chosenDate, chosenTime, chosenFood, recipientMessage } = req.body;

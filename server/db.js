@@ -10,6 +10,50 @@ const databaseUrl = process.env.DATABASE_URL;
 let dbClient = null;
 let dbType = 'sqlite';
 
+// Persistent fallback JSON file for serverless environments when DATABASE_URL is not set
+const jsonDbPath = isVercel
+  ? '/tmp/datesite_backup.json'
+  : path.join(process.cwd(), 'data', 'datesite_backup.json');
+
+// Global memory store across lambda hot invocations
+if (!global.datesiteMemoryStore) {
+  global.datesiteMemoryStore = {
+    users: [],
+    proposals: [],
+    responses: [],
+    notifications: []
+  };
+}
+
+// Load JSON backup if exists
+function loadJsonBackup() {
+  try {
+    if (fs.existsSync(jsonDbPath)) {
+      const data = JSON.parse(fs.readFileSync(jsonDbPath, 'utf8'));
+      if (data.proposals && Array.isArray(data.proposals)) {
+        global.datesiteMemoryStore = data;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load JSON backup:', e);
+  }
+}
+
+// Save JSON backup
+function saveJsonBackup() {
+  try {
+    const dir = path.dirname(jsonDbPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(jsonDbPath, JSON.stringify(global.datesiteMemoryStore, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Failed to save JSON backup:', e);
+  }
+}
+
+loadJsonBackup();
+
 // Initialize Database Connection
 if (databaseUrl && (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://'))) {
   dbType = 'postgres';
@@ -128,6 +172,34 @@ export async function initDb() {
       );
     `);
     await seedDemoData();
+    await restoreFromMemoryBackup();
+  }
+}
+
+// Restore user-created proposals from global memory/JSON backup into SQLite if SQLite table was reset
+async function restoreFromMemoryBackup() {
+  if (dbType !== 'sqlite') return;
+  try {
+    for (const u of global.datesiteMemoryStore.users) {
+      const existing = dbClient.prepare('SELECT * FROM users WHERE email = ?').get(u.email);
+      if (!existing) {
+        dbClient.prepare('INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)').run(u.id, u.name, u.email, u.password_hash);
+      }
+    }
+    for (const p of global.datesiteMemoryStore.proposals) {
+      const existing = dbClient.prepare('SELECT * FROM proposals WHERE LOWER(slug) = LOWER(?)').get(p.slug);
+      if (!existing) {
+        const foodOptionsStr = typeof p.food_options === 'string' ? p.food_options : JSON.stringify(p.food_options);
+        dbClient.prepare(
+          `INSERT INTO proposals (user_id, title, slug, recipient_nickname, photo_url, fake_amount, pickup_time, food_options, ps_note, punchline_text, status, views_count, accepts_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          p.user_id, p.title, p.slug, p.recipient_nickname, p.photo_url, p.fake_amount, p.pickup_time, foodOptionsStr, p.ps_note, p.punchline_text, p.status || 'live', p.views_count || 0, p.accepts_count || 0
+        );
+      }
+    }
+  } catch (e) {
+    console.error('Failed restoring from backup:', e);
   }
 }
 
@@ -158,24 +230,40 @@ async function seedDemoData() {
       { id: 'ramen', emoji: '🍜', label: 'Ramen' }
     ]);
 
+    const demoProp = {
+      user_id: userId,
+      title: 'Will you go on a date with me?',
+      slug: 'kyle-asks-maya',
+      recipient_nickname: 'Maya',
+      photo_url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
+      fake_amount: '499',
+      pickup_time: '6:00 PM',
+      food_options: defaultFoodOptions,
+      ps_note: 'normal people text. I made a website on Replit, during lunch, for you. no big deal.',
+      punchline_text: 'card declined (good). see you at 6:00 PM. don’t be late.',
+      status: 'live',
+      views_count: 3,
+      accepts_count: 1
+    };
+
     if (dbType === 'postgres') {
       await dbClient.query(
         `INSERT INTO proposals (user_id, title, slug, recipient_nickname, photo_url, fake_amount, pickup_time, food_options, ps_note, punchline_text, status, views_count, accepts_count)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           userId,
-          'Will you go on a date with me?',
-          'kyle-asks-maya',
-          'Maya',
-          'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
-          '499',
-          '6:00 PM',
-          defaultFoodOptions,
-          'normal people text. I made a website on Replit, during lunch, for you. no big deal.',
-          'card declined (good). see you at 6:00 PM. don’t be late.',
-          'live',
-          3,
-          1
+          demoProp.title,
+          demoProp.slug,
+          demoProp.recipient_nickname,
+          demoProp.photo_url,
+          demoProp.fake_amount,
+          demoProp.pickup_time,
+          demoProp.food_options,
+          demoProp.ps_note,
+          demoProp.punchline_text,
+          demoProp.status,
+          demoProp.views_count,
+          demoProp.accepts_count
         ]
       );
     } else {
@@ -185,45 +273,57 @@ async function seedDemoData() {
       );
       stmt.run(
         userId,
-        'Will you go on a date with me?',
-        'kyle-asks-maya',
-        'Maya',
-        'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
-        '499',
-        '6:00 PM',
-        defaultFoodOptions,
-        'normal people text. I made a website on Replit, during lunch, for you. no big deal.',
-        'card declined (good). see you at 6:00 PM. don’t be late.',
-        'live',
-        3,
-        1
+        demoProp.title,
+        demoProp.slug,
+        demoProp.recipient_nickname,
+        demoProp.photo_url,
+        demoProp.fake_amount,
+        demoProp.pickup_time,
+        demoProp.food_options,
+        demoProp.ps_note,
+        demoProp.punchline_text,
+        demoProp.status,
+        demoProp.views_count,
+        demoProp.accepts_count
       );
     }
+
+    global.datesiteMemoryStore.users.push({ id: userId, name: 'Kyle', email: 'kyle@example.com', password_hash: passwordHash });
+    global.datesiteMemoryStore.proposals.push(demoProp);
+    saveJsonBackup();
   }
 }
 
 // User methods
 export async function createUser(name, email, passwordHash) {
+  let userObj;
   if (dbType === 'postgres') {
     const res = await dbClient.query(
       `INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING *`,
       [name, email, passwordHash]
     );
-    return res.rows[0];
+    userObj = res.rows[0];
   } else {
     const stmt = dbClient.prepare(`INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)`);
     const info = stmt.run(name, email, passwordHash);
-    return { id: info.lastInsertRowid, name, email };
+    userObj = { id: info.lastInsertRowid, name, email, password_hash: passwordHash };
   }
+
+  global.datesiteMemoryStore.users.push({ id: userObj.id, name, email, password_hash: passwordHash });
+  saveJsonBackup();
+  return userObj;
 }
 
 export async function getUserByEmail(email) {
+  const cleanEmail = (email || '').toLowerCase().trim();
   if (dbType === 'postgres') {
-    const res = await dbClient.query(`SELECT * FROM users WHERE email = $1`, [email]);
+    const res = await dbClient.query(`SELECT * FROM users WHERE LOWER(email) = LOWER($1)`, [cleanEmail]);
     return res.rows[0];
   } else {
-    const stmt = dbClient.prepare(`SELECT * FROM users WHERE email = ?`);
-    return stmt.get(email);
+    const stmt = dbClient.prepare(`SELECT * FROM users WHERE LOWER(email) = LOWER(?)`);
+    const user = stmt.get(cleanEmail);
+    if (user) return user;
+    return global.datesiteMemoryStore.users.find(u => u.email.toLowerCase() === cleanEmail);
   }
 }
 
@@ -233,7 +333,11 @@ export async function getUserById(id) {
     return res.rows[0];
   } else {
     const stmt = dbClient.prepare(`SELECT id, name, email, created_at FROM users WHERE id = ?`);
-    return stmt.get(id);
+    const user = stmt.get(id);
+    if (user) return user;
+    const found = global.datesiteMemoryStore.users.find(u => u.id == id);
+    if (found) return { id: found.id, name: found.name, email: found.email };
+    return null;
   }
 }
 
@@ -247,17 +351,40 @@ export async function getProposalsByUserId(userId) {
     return res.rows;
   } else {
     const stmt = dbClient.prepare(`SELECT * FROM proposals WHERE user_id = ? ORDER BY created_at DESC`);
-    return stmt.all(userId);
+    const list = stmt.all(userId);
+    if (list && list.length > 0) return list;
+    return global.datesiteMemoryStore.proposals.filter(p => p.user_id == userId);
   }
 }
 
-export async function getProposalBySlug(slug) {
+export async function getProposalBySlug(rawSlug) {
+  if (!rawSlug) return null;
+  const cleanSlug = rawSlug.toLowerCase().replace(/^\/p\//, '').split('/')[0].split('?')[0].trim();
+
   if (dbType === 'postgres') {
-    const res = await dbClient.query(`SELECT * FROM proposals WHERE slug = $1`, [slug]);
+    const res = await dbClient.query(`SELECT * FROM proposals WHERE LOWER(slug) = LOWER($1)`, [cleanSlug]);
     return res.rows[0];
   } else {
-    const stmt = dbClient.prepare(`SELECT * FROM proposals WHERE slug = ?`);
-    return stmt.get(slug);
+    const stmt = dbClient.prepare(`SELECT * FROM proposals WHERE LOWER(slug) = LOWER(?)`);
+    const found = stmt.get(cleanSlug);
+    if (found) return found;
+
+    // Check global memory backup store
+    const memFound = global.datesiteMemoryStore.proposals.find(p => p.slug.toLowerCase() === cleanSlug);
+    if (memFound) {
+      // Re-insert into SQLite DB for next queries
+      try {
+        const foodOptionsStr = typeof memFound.food_options === 'string' ? memFound.food_options : JSON.stringify(memFound.food_options);
+        dbClient.prepare(
+          `INSERT OR REPLACE INTO proposals (id, user_id, title, slug, recipient_nickname, photo_url, fake_amount, pickup_time, food_options, ps_note, punchline_text, status, views_count, accepts_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          memFound.id || Date.now(), memFound.user_id, memFound.title, memFound.slug, memFound.recipient_nickname, memFound.photo_url, memFound.fake_amount, memFound.pickup_time, foodOptionsStr, memFound.ps_note, memFound.punchline_text, memFound.status || 'live', memFound.views_count || 0, memFound.accepts_count || 0
+        );
+      } catch (e) {}
+      return memFound;
+    }
+    return null;
   }
 }
 
@@ -267,7 +394,9 @@ export async function getProposalById(id) {
     return res.rows[0];
   } else {
     const stmt = dbClient.prepare(`SELECT * FROM proposals WHERE id = ?`);
-    return stmt.get(id);
+    const found = stmt.get(id);
+    if (found) return found;
+    return global.datesiteMemoryStore.proposals.find(p => p.id == id);
   }
 }
 
@@ -275,8 +404,15 @@ export async function incrementProposalViews(id) {
   if (dbType === 'postgres') {
     await dbClient.query(`UPDATE proposals SET views_count = views_count + 1 WHERE id = $1`, [id]);
   } else {
-    const stmt = dbClient.prepare(`UPDATE proposals SET views_count = views_count + 1 WHERE id = ?`);
-    stmt.run(id);
+    try {
+      const stmt = dbClient.prepare(`UPDATE proposals SET views_count = views_count + 1 WHERE id = ?`);
+      stmt.run(id);
+    } catch (e) {}
+    const p = global.datesiteMemoryStore.proposals.find(item => item.id == id);
+    if (p) {
+      p.views_count = (p.views_count || 0) + 1;
+      saveJsonBackup();
+    }
   }
 }
 
@@ -284,8 +420,15 @@ export async function incrementProposalAccepts(id) {
   if (dbType === 'postgres') {
     await dbClient.query(`UPDATE proposals SET accepts_count = accepts_count + 1 WHERE id = $1`, [id]);
   } else {
-    const stmt = dbClient.prepare(`UPDATE proposals SET accepts_count = accepts_count + 1 WHERE id = ?`);
-    stmt.run(id);
+    try {
+      const stmt = dbClient.prepare(`UPDATE proposals SET accepts_count = accepts_count + 1 WHERE id = ?`);
+      stmt.run(id);
+    } catch (e) {}
+    const p = global.datesiteMemoryStore.proposals.find(item => item.id == id);
+    if (p) {
+      p.accepts_count = (p.accepts_count || 0) + 1;
+      saveJsonBackup();
+    }
   }
 }
 
@@ -303,8 +446,10 @@ export async function createProposal(userId, proposalData) {
     status
   } = proposalData;
 
+  const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
   const foodOptionsStr = typeof food_options === 'string' ? food_options : JSON.stringify(food_options);
 
+  let newProp;
   if (dbType === 'postgres') {
     const res = await dbClient.query(
       `INSERT INTO proposals 
@@ -313,7 +458,7 @@ export async function createProposal(userId, proposalData) {
       [
         userId,
         title || 'Will you go on a date with me?',
-        slug,
+        cleanSlug,
         recipient_nickname || '',
         photo_url || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
         fake_amount || '499',
@@ -324,7 +469,7 @@ export async function createProposal(userId, proposalData) {
         status || 'live'
       ]
     );
-    return res.rows[0];
+    newProp = res.rows[0];
   } else {
     const stmt = dbClient.prepare(
       `INSERT INTO proposals 
@@ -334,7 +479,7 @@ export async function createProposal(userId, proposalData) {
     const info = stmt.run(
       userId,
       title || 'Will you go on a date with me?',
-      slug,
+      cleanSlug,
       recipient_nickname || '',
       photo_url || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
       fake_amount || '499',
@@ -344,8 +489,27 @@ export async function createProposal(userId, proposalData) {
       punchline_text || `card declined (good). see you at ${pickup_time || '6:00 PM'}. don’t be late.`,
       status || 'live'
     );
-    return getProposalById(info.lastInsertRowid);
+    newProp = {
+      id: info.lastInsertRowid,
+      user_id: userId,
+      title: title || 'Will you go on a date with me?',
+      slug: cleanSlug,
+      recipient_nickname: recipient_nickname || '',
+      photo_url: photo_url || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
+      fake_amount: fake_amount || '499',
+      pickup_time: pickup_time || '6:00 PM',
+      food_options: foodOptionsStr,
+      ps_note: ps_note || 'normal people text.',
+      punchline_text: punchline_text || `card declined (good). see you at ${pickup_time || '6:00 PM'}. don’t be late.`,
+      status: status || 'live',
+      views_count: 0,
+      accepts_count: 0
+    };
   }
+
+  global.datesiteMemoryStore.proposals.push(newProp);
+  saveJsonBackup();
+  return newProp;
 }
 
 export async function updateProposal(id, userId, proposalData) {
@@ -365,8 +529,10 @@ export async function updateProposal(id, userId, proposalData) {
     status
   } = proposalData;
 
+  const cleanSlug = slug ? slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-') : existing.slug;
   const foodOptionsStr = typeof food_options === 'string' ? food_options : JSON.stringify(food_options);
 
+  let updatedProp;
   if (dbType === 'postgres') {
     const res = await dbClient.query(
       `UPDATE proposals SET
@@ -383,7 +549,7 @@ export async function updateProposal(id, userId, proposalData) {
        WHERE id = $11 AND user_id = $12 RETURNING *`,
       [
         title || existing.title,
-        slug || existing.slug,
+        cleanSlug,
         recipient_nickname ?? existing.recipient_nickname,
         photo_url || existing.photo_url,
         fake_amount || existing.fake_amount,
@@ -396,7 +562,7 @@ export async function updateProposal(id, userId, proposalData) {
         userId
       ]
     );
-    return res.rows[0];
+    updatedProp = res.rows[0];
   } else {
     const stmt = dbClient.prepare(
       `UPDATE proposals SET
@@ -414,7 +580,7 @@ export async function updateProposal(id, userId, proposalData) {
     );
     stmt.run(
       title || existing.title,
-      slug || existing.slug,
+      cleanSlug,
       recipient_nickname ?? existing.recipient_nickname,
       photo_url || existing.photo_url,
       fake_amount || existing.fake_amount,
@@ -426,8 +592,16 @@ export async function updateProposal(id, userId, proposalData) {
       id,
       userId
     );
-    return getProposalById(id);
+    updatedProp = await getProposalById(id);
   }
+
+  const idx = global.datesiteMemoryStore.proposals.findIndex(p => p.id == id);
+  if (idx !== -1) {
+    global.datesiteMemoryStore.proposals[idx] = { ...global.datesiteMemoryStore.proposals[idx], ...updatedProp };
+    saveJsonBackup();
+  }
+
+  return updatedProp;
 }
 
 export async function deleteProposal(id, userId) {
@@ -437,25 +611,32 @@ export async function deleteProposal(id, userId) {
     const stmt = dbClient.prepare(`DELETE FROM proposals WHERE id = ? AND user_id = ?`);
     stmt.run(id, userId);
   }
+  global.datesiteMemoryStore.proposals = global.datesiteMemoryStore.proposals.filter(p => p.id != id);
+  saveJsonBackup();
 }
 
 // Response & Notification methods
 export async function createResponse(proposalId, chosenDate, chosenTime, chosenFood, recipientMessage) {
+  let respObj;
   if (dbType === 'postgres') {
     const res = await dbClient.query(
       `INSERT INTO responses (proposal_id, chosen_date, chosen_time, chosen_food, recipient_message)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [proposalId, chosenDate, chosenTime, chosenFood, recipientMessage || '']
     );
-    return res.rows[0];
+    respObj = res.rows[0];
   } else {
     const stmt = dbClient.prepare(
       `INSERT INTO responses (proposal_id, chosen_date, chosen_time, chosen_food, recipient_message)
        VALUES (?, ?, ?, ?, ?)`
     );
     const info = stmt.run(proposalId, chosenDate, chosenTime, chosenFood, recipientMessage || '');
-    return { id: info.lastInsertRowid, proposal_id: proposalId, chosen_date: chosenDate, chosen_time: chosenTime, chosen_food: chosenFood, recipient_message: recipientMessage };
+    respObj = { id: info.lastInsertRowid, proposal_id: proposalId, chosen_date: chosenDate, chosen_time: chosenTime, chosen_food: chosenFood, recipient_message: recipientMessage };
   }
+
+  global.datesiteMemoryStore.responses.push(respObj);
+  saveJsonBackup();
+  return respObj;
 }
 
 export async function getResponsesByProposalId(proposalId) {
@@ -467,22 +648,29 @@ export async function getResponsesByProposalId(proposalId) {
     return res.rows;
   } else {
     const stmt = dbClient.prepare(`SELECT * FROM responses WHERE proposal_id = ? ORDER BY accepted_at DESC`);
-    return stmt.all(proposalId);
+    const list = stmt.all(proposalId);
+    if (list && list.length > 0) return list;
+    return global.datesiteMemoryStore.responses.filter(r => r.proposal_id == proposalId);
   }
 }
 
 export async function createNotification(userId, proposalId, message) {
+  let notifObj;
   if (dbType === 'postgres') {
     const res = await dbClient.query(
       `INSERT INTO notifications (user_id, proposal_id, message) VALUES ($1, $2, $3) RETURNING *`,
       [userId, proposalId, message]
     );
-    return res.rows[0];
+    notifObj = res.rows[0];
   } else {
     const stmt = dbClient.prepare(`INSERT INTO notifications (user_id, proposal_id, message) VALUES (?, ?, ?)`);
     const info = stmt.run(userId, proposalId, message);
-    return { id: info.lastInsertRowid, user_id: userId, proposal_id: proposalId, message, is_read: 0 };
+    notifObj = { id: info.lastInsertRowid, user_id: userId, proposal_id: proposalId, message, is_read: 0 };
   }
+
+  global.datesiteMemoryStore.notifications.push(notifObj);
+  saveJsonBackup();
+  return notifObj;
 }
 
 export async function getNotificationsByUserId(userId) {
@@ -494,7 +682,9 @@ export async function getNotificationsByUserId(userId) {
     return res.rows;
   } else {
     const stmt = dbClient.prepare(`SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`);
-    return stmt.all(userId);
+    const list = stmt.all(userId);
+    if (list && list.length > 0) return list;
+    return global.datesiteMemoryStore.notifications.filter(n => n.user_id == userId);
   }
 }
 
@@ -505,4 +695,8 @@ export async function markNotificationsRead(userId) {
     const stmt = dbClient.prepare(`UPDATE notifications SET is_read = 1 WHERE user_id = ?`);
     stmt.run(userId);
   }
+  global.datesiteMemoryStore.notifications.forEach(n => {
+    if (n.user_id == userId) n.is_read = 1;
+  });
+  saveJsonBackup();
 }
