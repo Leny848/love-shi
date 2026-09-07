@@ -1,34 +1,39 @@
-# 🌸 DateSite — Multi-User Date Proposal Platform
+# 🍷 SoftYes — Private Date Proposals for One Person
 
-**DateSite** is a playful, multi-user web platform where users can sign up, build personalized date-invitation links with custom fake payment fees, share a unique public link (`/p/:slug`), and receive live dashboard notifications when someone accepts!
-
----
-
-## ⚡ Key Features
-
-- 🔑 **User Auth**: Email + Password authentication with JWT sessions.
-- 🎨 **Custom Proposals**: Set custom titles, recipient nicknames, pug photo URLs, pickup line times, custom fake fee amounts ($20, $499, etc.), and P.S. notes.
-- 🔗 **Unique Share Links**: Public `/p/:slug` invitation pages that require no login for recipients.
-- 💌 **Acceptance & Messages**: Recipient can pick date, time, food vibe, and leave an optional message.
-- 📊 **Creator Dashboard**: View live stats (views, accepts), responses list, notification badges, status toggles (Live/Draft/Paused), and one-click copy links.
-- 🔊 **Web Audio Synthesizer**: Built-in sound effects (pops, runaway boing, celebration chimes) with top-right sound toggle.
-- 📁 **Database**: Supports PostgreSQL (`DATABASE_URL`) with automatic fallback to SQLite/local storage.
+**SoftYes** is a luxury multi-user web app built for creating private date proposals. Designed with a night-out luxury aesthetic (espresso tones, candlelight warmth, molten champagne gold, and cinematic photography), creators can customize proposal stories, set custom fake fee amounts, share private `/p/:slug` links, and view responses in a dark studio dashboard.
 
 ---
 
-## 🚀 Pre-Seeded Demo Account
+## ✨ Features
 
-You can sign in immediately using the pre-seeded demo account:
+- 🍷 **Night-Out Luxury Aesthetic**: Deep espresso (`#0f0d0e`), candlelight gold accents (`#e5c158`), subtle film grain, and editorial serif headlines (*Playfair Display* / *Cormorant Garamond*).
+- 🎬 **6-Scene Cinematic Story Experience (`/p/:slug`)**:
+  1. **The Ask**: Full-bleed photo, customizable question, gold YES pill & arc-slip ghost NO button.
+  2. **The Flinch**: Dark room candle flame, "You actually said yes."
+  3. **When**: Custom calendar & time selector (12:00 - 22:30).
+  4. **The Table**: High-end photography mood cards (Late Dinner, Cocktails & Talk, Rooftop & Walk, Sweets & Midnight).
+  5. **The Note**: Dark paper letter with custom P.S. note & recipient note box.
+  6. **Private Reservation Ticket**: Creator-set fake amount ($499, $150, etc.), theatrical line items, decline joke & date recap.
+- 🎨 **Creator Studio & Split-View Editor**:
+  - Home: Poster gallery of active proposal campaigns (views count, accepts count, status tags).
+  - Split-view editor: Form fields on the left with phone-sized live preview on the right.
+  - In-app notification bell with unread badge counter.
+- 🔊 **Synthesized Web Audio**: Built-in sound effects (pops, boing evasion, celebration chimes) with top-right sound toggle.
+- 📁 **Database**: Supports PostgreSQL (`DATABASE_URL`) with automatic fallback to SQLite/local JSON storage.
+
+---
+
+## 🔑 Pre-Seeded Demo Account
+
+Log in immediately with the pre-seeded demo account:
 
 - **Email**: `kyle@example.com`
 - **Password**: `password123`
-- **Demo Link**: `http://localhost:5173/p/kyle-asks-maya`
+- **Demo Story Link**: `http://localhost:5173/p/kyle-asks-maya`
 
 ---
 
 ## 🛠️ Environment Variables
-
-Create a `.env` file or configure in your deployment dashboard:
 
 ```env
 # Optional: PostgreSQL Connection String (Vercel Postgres / Supabase / Neon)
@@ -53,12 +58,10 @@ npm run dev
 
 ---
 
-## ☁️ Deployment
-
-### Deploy to Vercel
+## ☁️ Deployment on Vercel
 
 ```bash
 npx vercel --prod
 ```
 
-Or connect your GitHub repository ([`https://github.com/Leny848/love-shi.git`](https://github.com/Leny848/love-shi.git)) to Vercel. Vercel automatically deploys the frontend and serverless API endpoints via `vercel.json`!
+Or connect your GitHub repository ([`https://github.com/Leny848/love-shi.git`](https://github.com/Leny848/love-shi.git)) to Vercel.
