@@ -64,22 +64,6 @@ export function AuthPage({ onLoginSuccess }) {
             : 'Sign in to manage your proposal links and view responses'}
         </p>
 
-        {/* Demo Account Button */}
-        {!isSignup && (
-          <div className="mb-6 p-3 bg-pink-50/70 border border-pink-200/80 rounded-2xl flex items-center justify-between text-xs">
-            <span className="text-pink-700 font-medium flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" /> Demo Account pre-seeded
-            </span>
-            <button
-              type="button"
-              onClick={fillDemo}
-              className="px-2.5 py-1 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-lg transition-colors cursor-pointer"
-            >
-              Fill Demo Login
-            </button>
-          </div>
-        )}
-
         {error && (
           <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-600 text-xs rounded-xl font-medium">
             {error}
