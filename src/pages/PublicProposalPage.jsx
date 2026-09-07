@@ -127,6 +127,33 @@ export function PublicProposalPage({ slug }) {
     }
   };
 
+  const getFoodImage = (mood) => {
+    if (mood && mood.image) return mood.image;
+    const text = (mood ? (mood.label || mood.title || mood.id || '') : '').toLowerCase();
+    if (text.includes('pizza')) return 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=800';
+    if (text.includes('sushi')) return 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&q=80&w=800';
+    if (text.includes('burger')) return 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=800';
+    if (text.includes('pasta')) return 'https://images.unsplash.com/photo-1621996346565-e3d5d6281313?auto=format&fit=crop&q=80&w=800';
+    if (text.includes('taco')) return 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&q=80&w=800';
+    if (text.includes('ramen')) return 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&q=80&w=800';
+    if (text.includes('steak') || text.includes('dinner')) return 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&q=80&w=800';
+    if (text.includes('sweet') || text.includes('dessert') || text.includes('cake')) return 'https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&q=80&w=800';
+    if (text.includes('cocktail') || text.includes('drink')) return 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80&w=800';
+    return CONFIG.defaultPhotoUrl;
+  };
+
+  const getFoodSubtitle = (mood) => {
+    if (mood && mood.subtitle) return mood.subtitle;
+    const text = (mood ? (mood.label || mood.title || mood.id || '') : '').toLowerCase();
+    if (text.includes('pizza')) return 'Wood-fired Margherita & crisp crust';
+    if (text.includes('sushi')) return 'Salmon, tuna & artisanal rolls';
+    if (text.includes('burger')) return 'Juicy Wagyu beef & golden fries';
+    if (text.includes('pasta')) return 'Truffle tagliatelle & fresh parmesan';
+    if (text.includes('taco')) return 'Corn tortillas, guacamole & lime';
+    if (text.includes('ramen')) return 'Rich broth, soft egg & chashu pork';
+    return 'Artisanal dining';
+  };
+
   const handleCopySummary = () => {
     playPop();
     const dateFormatted = formatDate(selectedDate);
@@ -326,7 +353,7 @@ export function PublicProposalPage({ slug }) {
         )}
 
         {/* =================================================================== */}
-        {/* SCENE 4: THE TABLE (Mood Cards with Dark Photography) */}
+        {/* SCENE 4: THE TABLE (Exact Food Photography Cards) */}
         {/* =================================================================== */}
         {scene === 4 && (
           <motion.div
@@ -335,48 +362,53 @@ export function PublicProposalPage({ slug }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
-            className="w-full h-full flex flex-col items-center justify-center p-6 z-10 relative max-w-2xl mx-auto overflow-y-auto"
+            className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 z-10 relative max-w-2xl mx-auto overflow-y-auto"
           >
-            <div className="text-center mb-6">
+            <div className="text-center mb-5">
               <span className="text-xs uppercase tracking-widest text-amber-300/80 font-semibold block mb-1">
-                The Table
+                The Table 🥂
               </span>
-              <h1 className="font-serif text-3xl font-bold text-slate-100">
+              <h1 className="font-serif text-2xl sm:text-4xl font-bold text-slate-100">
                 What are we feeling?
               </h1>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              {moods.map((mood) => (
-                <motion.button
-                  key={mood.id}
-                  type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => {
-                    playPop();
-                    setSelectedMood(mood);
-                    handleNext();
-                  }}
-                  className="relative h-44 rounded-2xl overflow-hidden text-left border border-white/10 hover:border-amber-400/50 transition-all cursor-pointer group card-dark-shadow"
-                >
-                  <img
-                    src={mood.image || CONFIG.defaultPhotoUrl}
-                    alt={mood.label || mood.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 flex flex-col justify-end">
-                    <span className="font-serif text-lg font-bold text-white group-hover:text-amber-300 transition-colors">
-                      {mood.label || mood.title}
-                    </span>
-                    {mood.subtitle && (
-                      <span className="text-xs text-slate-300 font-light mt-0.5">
-                        {mood.subtitle}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full pb-6">
+              {moods.map((mood) => {
+                const foodImage = getFoodImage(mood);
+                const foodSub = getFoodSubtitle(mood);
+                const emojiStr = mood.emoji ? `${mood.emoji} ` : '';
+                const labelStr = mood.label || mood.title || mood.id;
+
+                return (
+                  <motion.button
+                    key={mood.id || mood.label}
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      playPop();
+                      setSelectedMood(mood);
+                      handleNext();
+                    }}
+                    className="relative h-40 sm:h-44 rounded-2xl overflow-hidden text-left border border-white/15 hover:border-amber-400/60 transition-all cursor-pointer group card-dark-shadow"
+                  >
+                    <img
+                      src={foodImage}
+                      alt={labelStr}
+                      className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 flex flex-col justify-end">
+                      <span className="font-serif text-base sm:text-lg font-bold text-white group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
+                        {emojiStr}{labelStr}
                       </span>
-                    )}
-                  </div>
-                </motion.button>
-              ))}
+                      <span className="text-[11px] sm:text-xs text-amber-100/70 font-light mt-0.5">
+                        {foodSub}
+                      </span>
+                    </div>
+                  </motion.button>
+                );
+              })}
             </div>
           </motion.div>
         )}
