@@ -145,7 +145,7 @@ export function PublicProposalPage({ slug }) {
   ];
 
   return (
-    <div className="w-screen h-screen relative overflow-hidden bg-[#0d0b0c] text-slate-100 select-none">
+    <div className="w-full min-h-[100dvh] h-[100dvh] relative overflow-x-hidden overflow-y-auto bg-[#0d0b0c] text-slate-100 select-none">
       <SoundToggle />
       <InteractiveBackground />
 
@@ -160,7 +160,7 @@ export function PublicProposalPage({ slug }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
-            className="w-full h-full relative flex flex-col justify-end p-6 sm:p-12 z-10"
+            className="w-full h-full relative flex flex-col justify-end p-4 sm:p-12 z-10 overflow-hidden"
           >
             {/* Cinematic Full-Bleed Background Image */}
             <div className="absolute inset-0 z-0">
@@ -174,17 +174,17 @@ export function PublicProposalPage({ slug }) {
             </div>
 
             {/* Foreground Story Card */}
-            <div ref={cardRef} className="relative z-10 max-w-xl mx-auto w-full text-center mb-10">
-              <span className="inline-block text-xs uppercase tracking-widest text-amber-300/80 font-semibold mb-3">
+            <div ref={cardRef} className="relative z-10 max-w-xl mx-auto w-full text-center mb-6 sm:mb-10 px-2">
+              <span className="inline-block text-[11px] sm:text-xs uppercase tracking-widest text-amber-300/90 font-semibold mb-2 sm:mb-3 bg-black/40 px-3 py-1 rounded-full border border-amber-500/20 backdrop-blur-md">
                 {proposal.recipient_nickname ? `For ${proposal.recipient_nickname}` : 'Private Invitation'}
               </span>
 
-              <h1 className="font-serif text-3xl sm:text-5xl font-bold text-white tracking-tight leading-tight mb-8 drop-shadow-md">
+              <h1 className="font-serif text-2xl sm:text-5xl font-bold text-white tracking-tight leading-tight mb-6 sm:mb-8 drop-shadow-md px-2">
                 "{proposal.title}"
               </h1>
 
-              {/* Two Controls Only: Solid Gold YES & Small Ghost NO */}
-              <div className="flex items-center justify-center gap-6 relative min-h-[54px]">
+              {/* Two Controls Only: Solid Gold YES & Evasive NO */}
+              <div className="flex flex-row items-center justify-center gap-4 sm:gap-6 relative min-h-[64px] pb-2">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -192,7 +192,7 @@ export function PublicProposalPage({ slug }) {
                     playCelebrate();
                     handleNext();
                   }}
-                  className="px-9 py-3.5 bg-gold-gradient text-slate-950 font-bold text-sm uppercase tracking-wider rounded-full gold-glow transition-all cursor-pointer z-10"
+                  className="px-8 sm:px-10 py-3.5 sm:py-4 bg-gold-gradient text-slate-950 font-extrabold text-xs sm:text-sm uppercase tracking-wider rounded-full gold-glow transition-all cursor-pointer z-10 shadow-2xl shrink-0"
                 >
                   YES ♥
                 </motion.button>

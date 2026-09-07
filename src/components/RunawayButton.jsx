@@ -16,38 +16,41 @@ export function RunawayButton({ text = "no", cardRef }) {
   const buttonRef = useRef(null);
   const lastMoveTime = useRef(0);
 
-  // Evasive arc slip within a strictly seeable & touchable radius
+  // Evasive arc slip within an expanded screen radius
   const moveButton = useCallback(() => {
     const now = Date.now();
-    if (now - lastMoveTime.current < 180) return; // Smooth rate limit
+    if (now - lastMoveTime.current < 40) return; // Ultra-fast responsiveness (40ms)
     lastMoveTime.current = now;
 
     playBoing();
 
-    // Determine strict seeable bounds relative to viewport & container
+    // Determine seeable bounds relative to viewport & container
     const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 360;
     const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 640;
 
-    // Strict seeable & touchable radius limits
-    const maxX = Math.max(40, Math.min(110, Math.floor(screenWidth * 0.28)));
-    const maxY = Math.max(35, Math.min(75, Math.floor(screenHeight * 0.18)));
+    // Expanded screen radius (up to 42% screen width, 32% screen height)
+    const maxX = Math.max(70, Math.min(220, Math.floor(screenWidth * 0.42)));
+    const maxY = Math.max(60, Math.min(180, Math.floor(screenHeight * 0.32)));
 
-    // Generate random angle & distance within seeable bounds
+    // Generate random angle & distance across screen radius
     const angle = Math.random() * Math.PI * 2;
-    const rawX = Math.cos(angle) * (50 + Math.random() * (maxX - 40));
-    const rawY = Math.sin(angle) * (40 + Math.random() * (maxY - 35));
+    const distanceX = 70 + Math.random() * (maxX - 70);
+    const distanceY = 60 + Math.random() * (maxY - 60);
 
-    // Clamp coordinates strictly within seeable radius
+    const rawX = Math.cos(angle) * distanceX;
+    const rawY = Math.sin(angle) * distanceY;
+
+    // Clamp coordinates strictly within visible screen radius
     let newX = Math.max(-maxX, Math.min(maxX, rawX));
     let newY = Math.max(-maxY, Math.min(maxY, rawY));
 
-    // Ensure minimum jump distance so it doesn't stay stationary
-    if (Math.abs(newX - position.x) < 40) {
-      newX += newX >= 0 ? 45 : -45;
+    // Ensure snappy jump distance so it never stays close to previous position
+    if (Math.abs(newX - position.x) < 60) {
+      newX += newX >= 0 ? 70 : -70;
       newX = Math.max(-maxX, Math.min(maxX, newX));
     }
-    if (Math.abs(newY - position.y) < 35) {
-      newY += newY >= 0 ? 40 : -40;
+    if (Math.abs(newY - position.y) < 50) {
+      newY += newY >= 0 ? 60 : -60;
       newY = Math.max(-maxY, Math.min(maxY, newY));
     }
 
@@ -59,7 +62,7 @@ export function RunawayButton({ text = "no", cardRef }) {
     setTimeout(() => setTaunt(null), 1000);
   }, [position.x, position.y]);
 
-  // Proximity detection for Mouse & Touch events
+  // High-sensitivity proximity detection for Mouse & Touch events (< 120px)
   useEffect(() => {
     const checkProximity = (clientX, clientY) => {
       if (!buttonRef.current) return;
@@ -71,7 +74,7 @@ export function RunawayButton({ text = "no", cardRef }) {
       const distY = clientY - btnCenterY;
       const distance = Math.hypot(distX, distY);
 
-      if (distance < 75) {
+      if (distance < 120) {
         moveButton();
       }
     };
@@ -86,12 +89,20 @@ export function RunawayButton({ text = "no", cardRef }) {
       }
     };
 
+    const handleTouchStart = (e) => {
+      if (e.touches && e.touches[0]) {
+        checkProximity(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchstart', handleTouchStart);
     };
   }, [moveButton]);
 
@@ -125,12 +136,12 @@ export function RunawayButton({ text = "no", cardRef }) {
         ref={buttonRef}
         type="button"
         animate={position.isMoved ? { x: position.x, y: position.y } : { x: 0, y: 0 }}
-        transition={{ type: "spring", stiffness: 240, damping: 22 }}
+        transition={{ type: "spring", stiffness: 700, damping: 18 }}
         onMouseEnter={handlePointerApproach}
         onTouchStart={handlePointerApproach}
         onClick={handleClick}
         onFocus={handlePointerApproach}
-        className="px-5 py-2.5 text-xs tracking-wider uppercase font-semibold text-slate-400 hover:text-slate-200 border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full transition-colors cursor-pointer select-none z-20 focus:outline-none active:scale-95"
+        className="px-5 py-2.5 text-xs tracking-wider uppercase font-semibold text-slate-400 hover:text-slate-200 border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full transition-colors cursor-pointer select-none z-20 focus:outline-none active:scale-95 touch-none"
       >
         {text}
       </motion.button>
