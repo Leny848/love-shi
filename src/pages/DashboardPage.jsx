@@ -39,20 +39,52 @@ export function DashboardPage() {
   // Copy feedback map
   const [copiedMap, setCopiedMap] = useState({});
 
-  const fetchDashboardData = () => {
+  const fetchDashboardData = async () => {
     if (!token) return;
     setLoading(true);
 
-    Promise.all([
-      fetch('/api/proposals', { headers: { Authorization: `Bearer ${token}` } }).then((res) => res.json()),
-      fetch('/api/notifications', { headers: { Authorization: `Bearer ${token}` } }).then((res) => res.json())
-    ])
-      .then(([proposalData, notifData]) => {
-        setProposals(proposalData.proposals || []);
-        setNotifications(notifData.notifications || []);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+    try {
+      const [proposalRes, notifRes] = await Promise.all([
+        fetch('/api/proposals', { headers: { Authorization: `Bearer ${token}` } }).then((res) => res.json()),
+        fetch('/api/notifications', { headers: { Authorization: `Bearer ${token}` } }).then((res) => res.json())
+      ]);
+
+      let serverProps = proposalRes.proposals || [];
+      const savedLocalStr = localStorage.getItem('datesite_my_proposals');
+      const localProps = savedLocalStr ? JSON.parse(savedLocalStr) : [];
+
+      // If serverless container restarted and lost server proposals, auto-restore from local backup
+      if (serverProps.length === 0 && localProps.length > 0) {
+        const restoredProps = [];
+        for (const localP of localProps) {
+          try {
+            const rePostRes = await fetch('/api/proposals', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify(localP)
+            });
+            const rePostData = await rePostRes.json();
+            if (rePostRes.ok && rePostData.proposal) {
+              restoredProps.push(rePostData.proposal);
+            }
+          } catch (reErr) {}
+        }
+        if (restoredProps.length > 0) {
+          serverProps = restoredProps;
+        }
+      }
+
+      localStorage.setItem('datesite_my_proposals', JSON.stringify(serverProps));
+      setProposals(serverProps);
+      setNotifications(notifRes.notifications || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

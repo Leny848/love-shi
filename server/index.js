@@ -91,11 +91,19 @@ app.post('/api/auth/signup', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, nameBackup } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
-    const user = await getUserByEmail(email.toLowerCase().trim());
+    const cleanEmail = email.toLowerCase().trim();
+    let user = await getUserByEmail(cleanEmail);
+
+    // Auto-restore account if serverless backend container cold-started
+    if (!user && nameBackup) {
+      const passwordHash = await bcrypt.hash(password, 10);
+      user = await createUser(nameBackup.trim(), cleanEmail, passwordHash);
+    }
+
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
