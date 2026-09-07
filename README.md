@@ -1,84 +1,64 @@
-# 🌸 Date Invitation Web App
+# 🌸 DateSite — Multi-User Date Proposal Platform
 
-A playful, interactive, multi-step date invitation web application designed with a soft blush pink aesthetic, playful animations, a runaway "No" button, and a fake $499 payment punchline.
-
----
-
-## ⚡ Quick Customization (In 30 Seconds)
-
-All text, images, times, food options, and joke copy are centralized in a single configuration file:
-
-📁 **`src/config.js`**
-
-Open `src/config.js` to change any aspect of the app.
+**DateSite** is a playful, multi-user web platform where users can sign up, build personalized date-invitation links with custom fake payment fees, share a unique public link (`/p/:slug`), and receive live dashboard notifications when someone accepts!
 
 ---
 
-### 1. 🐶 How to Replace the Pug Photo
+## ⚡ Key Features
 
-1. Open `src/config.js`.
-2. Locate `photoUrl`:
-   ```javascript
-   photoUrl: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600",
-   ```
-3. Replace the URL with your own image URL (or place an image inside the `public/` directory, e.g., `/my-photo.jpg`, and set `photoUrl: "/my-photo.jpg"`).
+- 🔑 **User Auth**: Email + Password authentication with JWT sessions.
+- 🎨 **Custom Proposals**: Set custom titles, recipient nicknames, pug photo URLs, pickup line times, custom fake fee amounts ($20, $499, etc.), and P.S. notes.
+- 🔗 **Unique Share Links**: Public `/p/:slug` invitation pages that require no login for recipients.
+- 💌 **Acceptance & Messages**: Recipient can pick date, time, food vibe, and leave an optional message.
+- 📊 **Creator Dashboard**: View live stats (views, accepts), responses list, notification badges, status toggles (Live/Draft/Paused), and one-click copy links.
+- 🔊 **Web Audio Synthesizer**: Built-in sound effects (pops, runaway boing, celebration chimes) with top-right sound toggle.
+- 📁 **Database**: Supports PostgreSQL (`DATABASE_URL`) with automatic fallback to SQLite/local storage.
 
 ---
 
-### 2. ✏️ How to Change the Name & Copy
+## 🚀 Pre-Seeded Demo Account
 
-Inside `src/config.js`, you can modify all text strings:
+You can sign in immediately using the pre-seeded demo account:
 
-```javascript
-export const CONFIG = {
-  // Proposal Screen
-  proposalTitle: "Will you go on a date with me?",
-  yesBtnText: "YES ♥",
-  noBtnText: "no",
+- **Email**: `kyle@example.com`
+- **Password**: `password123`
+- **Demo Link**: `http://localhost:5173/p/kyle-asks-maya`
 
-  // Shock Screen
-  shockTitle: "WAIT YOU ACTUALLY SAID YES??",
-  shockSubtext: "I was so ready for you to say no",
+---
 
-  // Confirmation & Pickup Text
-  getPickupText: (time) => `glad you didn't say no. be ready by ${time || "6:00 PM"}, I'm coming to get you 🚗`,
-  psNote: "normal people text. I made a website on Replit, during lunch, for you. no big deal.",
+## 🛠️ Environment Variables
 
-  // Fake Paywall Punchline
-  price: "$499",
-  punchlineHeadline: "card declined (good).",
-  getPunchlineSubtext: (time) => `see you at ${time || "6:00 PM"}. don’t be late.`,
-};
+Create a `.env` file or configure in your deployment dashboard:
+
+```env
+# Optional: PostgreSQL Connection String (Vercel Postgres / Supabase / Neon)
+# Defaults to SQLite if not provided
+DATABASE_URL="postgres://user:password@host:5432/dbname"
+
+# Secret used to sign JWT authentication tokens
+JWT_SECRET="datesite_super_secret_jwt_key_2026"
 ```
 
 ---
 
-### 3. 🚀 How to Deploy on Replit
-
-1. Create a new Repl on **[Replit](https://replit.com)**:
-   - Select **Vite (React)** or **React** template.
-2. Upload/Push all files from this project into your Repl repository.
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
-5. Click **Deploy** in the top right of Replit (or use static site hosting) to share your live website link!
-
----
-
-## 🛠️ Local Development
+## 💻 Running Locally
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 npm install
 
-# Run dev server
+# 2. Start Express API server & Vite development frontend
 npm run dev
-
-# Build production bundle
-npm run build
 ```
+
+---
+
+## ☁️ Deployment
+
+### Deploy to Vercel
+
+```bash
+npx vercel --prod
+```
+
+Or connect your GitHub repository ([`https://github.com/Leny848/love-shi.git`](https://github.com/Leny848/love-shi.git)) to Vercel. Vercel automatically deploys the frontend and serverless API endpoints via `vercel.json`!
